@@ -1,0 +1,30 @@
+@'
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environments
+venv/
+venv311/
+.venv/
+
+# IDE
+.idea/
+
+# MLflow
+mlruns/
+mlartifacts/
+mlflow.db
+mlflow.db-shm
+mlflow.db-wal
+
+# Model caches and secrets
+.cache/
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+'@ | Set-Content .gitignore
