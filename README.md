@@ -293,7 +293,6 @@ MLflow_Champion_Challenger/
 │   ├── metrics_comparison.json
 │   ├── metrics_summary.json
 │   └── new_data_predictions.csv
-
 │
 ├── screenshots/
 │   ├── 01_mlflow_experiments.png
@@ -302,8 +301,8 @@ MLflow_Champion_Challenger/
 │
 ├── evaluate.py
 ├── register_champion.py
-├── register_models.py
 ├── predict_from_mlflow.py
+├── main.py
 ├── news_sentiment_analysis.csv
 ├── requirements.txt
 ├── README.md
@@ -432,11 +431,8 @@ The `screenshots/` directory contains the following project evidence:
 The results should therefore be interpreted as a comparative experiment rather than a guarantee of production-level sentiment classification accuracy.
 
 ---
-## 17. Declaration of AI Assistance
 
-ChatGPT was used as an AI assistance tool for debugging, understanding MLflow concepts, improving code structure, and preparing project documentation. The implementation was executed and tested by the student, and the reported experimental results were obtained from the actual project runs.
-
-## 18. Conclusion
+## 17. Conclusion
 
 This project demonstrates a complete Champion–Challenger model comparison workflow using Hugging Face and MLflow.
 
@@ -450,8 +446,12 @@ The project demonstrates experiment tracking, model evaluation, predefined model
 
 ---
 
+## 18. Declaration of AI Assistance
 
-## 18. GitHub Repository
+ChatGPT was used as an AI assistance tool for understanding MLflow concepts, debugging errors, improving code structure, and preparing project documentation. The implementation was executed and tested by the student, and the reported experimental results were obtained from the actual project runs.
+
+---
+
+## 19. GitHub Repository
 
 **Repository:** [1MS25CI081 – MLflow Champion–Challenger](https://github.com/Mohammed-Zubiyaan-A/1MS25CI081-mlflow-champion-challenger)
-
