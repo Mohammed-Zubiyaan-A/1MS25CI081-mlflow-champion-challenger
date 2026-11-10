@@ -3,34 +3,34 @@
     "model_a": {
         "name": "DistilBERT",
         "model_id": "distilbert/distilbert-base-uncased-finetuned-sst-2-english",
-        "run_id": "6d969ecdd5e84ceb8d9215b410b37780",
-        "model_uri": "runs:/6d969ecdd5e84ceb8d9215b410b37780/model",
+        "run_id": "7d96fb0f6e5f43918127dd9b29b5856c",
+        "model_uri": "runs:/7d96fb0f6e5f43918127dd9b29b5856c/model",
         "metrics": {
             "accuracy": 0.595,
             "macro_precision": 0.5950855770193173,
             "macro_recall": 0.595,
             "macro_f1": 0.5949088544922607,
-            "average_latency_ms_per_sample": 129.62758649999842,
-            "total_inference_time_seconds": 25.925517299999683
+            "average_latency_ms_per_sample": 126.46222150000087,
+            "total_inference_time_seconds": 25.29244430000017
         },
         "prediction_path": "outputs\\distilbert_predictions.csv"
     },
     "model_b": {
         "name": "Siebert-RoBERTa",
         "model_id": "siebert/sentiment-roberta-large-english",
-        "run_id": "c86835989cf74bcab44a5a1d4cd148b1",
-        "model_uri": "runs:/c86835989cf74bcab44a5a1d4cd148b1/model",
+        "run_id": "a6ab256a593b496a9fcea7e8c9b106c8",
+        "model_uri": "runs:/a6ab256a593b496a9fcea7e8c9b106c8/model",
         "metrics": {
             "accuracy": 0.63,
             "macro_precision": 0.6578436134045653,
             "macro_recall": 0.63,
             "macro_f1": 0.6129302228266555,
-            "average_latency_ms_per_sample": 900.7776889999968,
-            "total_inference_time_seconds": 180.15553779999937
+            "average_latency_ms_per_sample": 804.2781205000006,
+            "total_inference_time_seconds": 160.8556241000001
         },
         "prediction_path": "outputs\\roberta_predictions.csv"
     },
     "selected_champion": "DistilBERT",
     "decision": "Initial Champion retained.",
-    "summary_run_id": "4196f832c8e1429cb0fcc18e77290977"
+    "summary_run_id": "5b576176e4e84cde8b8fa0b52411f87c"
 }

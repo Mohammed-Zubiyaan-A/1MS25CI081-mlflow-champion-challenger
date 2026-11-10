@@ -105,3 +105,24 @@ to five times the champion's latency, Siebert-RoBERTa did not
 qualify for promotion.
 
 Therefore, DistilBERT remains the Champion.
+
+
+## 8. Model Registry
+
+Both evaluated models were registered under the MLflow registered model:
+
+`SentimentChampionChallenger`
+
+| Model | Version | Alias |
+|---|---:|---|
+| DistilBERT | 1 | champion |
+| Siebert-RoBERTa | 2 | challenger |
+
+The Champion alias points to DistilBERT because it provides a better latency-performance trade-off under the predefined selection rule.
+
+## 9. Running the Project
+
+Start the MLflow tracking server:
+
+```powershell
+python -m mlflow server --backend-store-uri sqlite:///mlflow.db --artifacts-destination ./mlartifacts --host 127.0.0.1 --port 5000

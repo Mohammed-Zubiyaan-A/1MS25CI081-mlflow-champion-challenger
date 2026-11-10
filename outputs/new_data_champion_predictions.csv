@@ -1,0 +1,9 @@
+sample_id,text,predicted_sentiment,confidence
+new_001,The company reported excellent profits this quarter.,positive,0.9997
+new_002,The new product launch was a complete disappointment.,negative,0.9998
+new_003,Investors are optimistic about the company's future growth.,positive,0.9995
+new_004,The business suffered significant losses this year.,negative,0.9997
+new_005,The customer service team provided an outstanding experience.,positive,0.9999
+new_006,The latest announcement created serious concerns among investors.,positive,0.9638
+new_007,The company successfully expanded into international markets.,positive,0.9998
+new_008,The declining sales figures disappointed shareholders.,negative,0.9998

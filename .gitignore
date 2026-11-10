@@ -1,5 +1,4 @@
-@'
-# Python
+﻿# Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -27,4 +26,3 @@ mlflow.db-wal
 # OS
 .DS_Store
 Thumbs.db
-'@ | Set-Content .gitignore
