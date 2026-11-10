@@ -1,0 +1,18 @@
+{
+    "DistilBERT": {
+        "accuracy": 0.595,
+        "macro_precision": 0.5950855770193173,
+        "macro_recall": 0.595,
+        "macro_f1": 0.5949088544922607,
+        "average_latency_ms_per_sample": 137.3958279999988,
+        "total_inference_time_seconds": 27.47916559999976
+    },
+    "Siebert-RoBERTa": {
+        "accuracy": 0.63,
+        "macro_precision": 0.6578436134045653,
+        "macro_recall": 0.63,
+        "macro_f1": 0.6129302228266555,
+        "average_latency_ms_per_sample": 819.2594389999977,
+        "total_inference_time_seconds": 163.85188779999953
+    }
+}

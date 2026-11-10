@@ -1,4 +1,4 @@
-
+import transformers
 import gc
 import json
 import time
@@ -34,13 +34,15 @@ MODEL_CONFIGS = [
     {
         "name": "DistilBERT",
         "model_id": "distilbert/distilbert-base-uncased-finetuned-sst-2-english",
-        "role": "initial_champion",
+        "role": "champion",
+        "run_name": "A_sentiment_distilbert-sst2",
         "filename": "distilbert",
     },
     {
         "name": "Siebert-RoBERTa",
         "model_id": "siebert/sentiment-roberta-large-english",
-        "role": "challenger",
+        "role": "challenger_candidate",
+        "run_name": "B_sentiment_roberta-large",
         "filename": "roberta",
     },
 ]
@@ -136,24 +138,40 @@ def evaluate_model(config):
     print("Hugging Face ID:", model_id)
     print("=" * 60)
 
-    with mlflow.start_run(run_name=f"{model_name}_Evaluation"):
+    with mlflow.start_run(run_name=config["run_name"]):
 
+        # Required assignment parameters
         mlflow.log_params({
-            "model_name": model_name,
             "hf_model_id": model_id,
             "task": "sentiment-classification",
-            "dataset_size": len(df),
-            "batch_size": BATCH_SIZE,
+            "role": config["role"],
             "max_length": MAX_LENGTH,
-            "random_seed": RANDOM_SEED,
+            "batch_size": BATCH_SIZE,
+            "eval_samples": len(df),
+            "seed": RANDOM_SEED,
             "device": "CPU",
         })
 
-        mlflow.set_tags({
-            "model_role": config["role"],
-            "hf_model_id": model_id,
-            "evaluation_dataset": str(DATA_PATH),
+        # Additional useful parameters
+        mlflow.log_params({
+            "model_name": model_name,
+            "dataset_size": len(df),
         })
+
+        # Required assignment tags
+        mlflow.set_tags({
+            "student_usn": "1MS25CI081",
+            "library_versions": (
+                f"transformers={transformers.__version__}; "
+                f"torch={torch.__version__}; "
+                f"mlflow={mlflow.__version__}"
+            ),
+            "dataset_name": str(DATA_PATH),
+            "model_role": config["role"],
+        })
+
+        # Log the shared evaluation dataset
+        mlflow.log_artifact(str(DATA_PATH))
 
         # Load model on CPU
         classifier = pipeline(
@@ -419,7 +437,16 @@ metrics_json = {
     for result in results
 }
 
-metrics_path = OUTPUT_DIR / "metrics_comparison.json"
+metrics_path = OUTPUT_DIR / "metrics_summary.json"
+
+with open(metrics_path, "w", encoding="utf-8") as file:
+    json.dump(metrics_json, file, indent=4)
+
+# Retain the previous filename for compatibility
+comparison_metrics_path = OUTPUT_DIR / "metrics_comparison.json"
+
+with open(comparison_metrics_path, "w", encoding="utf-8") as file:
+    json.dump(metrics_json, file, indent=4)
 
 with open(metrics_path, "w", encoding="utf-8") as file:
     json.dump(metrics_json, file, indent=4)
@@ -481,7 +508,21 @@ merged = pred_a[
 disagreements = merged[
     merged["predicted_sentiment_model_a"]
     != merged["predicted_sentiment_model_b"]
-].head(5)
+].head(5).copy()
+
+
+def explain_disagreement(row):
+
+    if row["predicted_sentiment_model_a"] == row["actual_sentiment"]:
+        return "DistilBERT matches the reference; RoBERTa differs."
+
+    return "RoBERTa matches the reference; DistilBERT differs."
+
+
+disagreements["comment"] = disagreements.apply(
+    explain_disagreement,
+    axis=1
+)
 
 disagreement_path = OUTPUT_DIR / "disagreement_examples.csv"
 disagreements.to_csv(disagreement_path, index=False)
@@ -490,37 +531,56 @@ disagreements.to_csv(disagreement_path, index=False)
 # 11. SUMMARY RUN IN MLFLOW
 # ==========================================================
 
-with mlflow.start_run(run_name="Champion_Challenger_Summary"):
+with mlflow.start_run(run_name="compare_sentiment"):
 
+    # Required summary parameters
+    mlflow.log_params({
+        "primary_metric": "macro_f1",
+        "margin": 0.01,
+        "latency_limit_ratio": 5.0,
+        "primary_metric_direction": "higher_is_better",
+    })
+
+    # Summary metrics
     mlflow.log_metrics({
         "model_a_macro_f1": f1_a,
         "model_b_macro_f1": f1_b,
-        "f1_difference": f1_difference,
+        "delta_primary_metric": f1_difference,
         "latency_ratio": latency_ratio,
     })
 
+    # Required winner tag
     mlflow.set_tags({
+        "winner": selected_champion,
         "selected_champion": selected_champion,
         "decision": decision,
         "comparison_metric": "macro_f1",
     })
 
+    # Log additional metrics
     for result in results:
         mlflow.log_metric(
             f"{result['name']}_accuracy",
-            result["metrics"]["accuracy"],
+            result["metrics"]["accuracy"]
         )
 
+    # Log required artifacts
     for artifact in [
         comparison_path,
         metrics_path,
+        comparison_metrics_path,
         f1_plot,
         latency_plot,
         disagreement_path,
+        DATA_PATH,
+        Path("README.md"),
     ]:
-        mlflow.log_artifact(str(artifact))
+        if Path(artifact).exists():
+            mlflow.log_artifact(str(artifact))
 
     summary_run_id = mlflow.active_run().info.run_id
+
+
 
 # ==========================================================
 # 12. SAVE RUN INFORMATION FOR REGISTRATION
