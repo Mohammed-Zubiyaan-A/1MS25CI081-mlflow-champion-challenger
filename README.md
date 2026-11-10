@@ -78,3 +78,30 @@ Both models will be registered under the same MLflow registered model name, with
 - Pandas
 - Scikit-learn
 - Matplotlib
+## Experimental Results
+
+Both models were evaluated using the same 200 English-language
+news samples, consisting of 100 positive and 100 negative samples.
+
+| Metric | DistilBERT | Siebert-RoBERTa |
+|---|---:|---:|
+| Accuracy | 0.5950 | 0.6300 |
+| Macro Precision | 0.5951 | 0.6578 |
+| Macro Recall | 0.5950 | 0.6300 |
+| Macro F1 | 0.5949 | 0.6129 |
+| Average Latency (ms/sample) | 129.6276 | 900.7777 |
+| Total Inference Time (seconds) | 25.9255 | 180.1555 |
+
+## Champion Selection
+
+DistilBERT was retained as the Champion.
+
+Although Siebert-RoBERTa achieved a Macro-F1 improvement of
+0.018, its average inference latency was approximately 6.95
+times higher than DistilBERT.
+
+Since the predefined selection rule limits challenger latency
+to five times the champion's latency, Siebert-RoBERTa did not
+qualify for promotion.
+
+Therefore, DistilBERT remains the Champion.
