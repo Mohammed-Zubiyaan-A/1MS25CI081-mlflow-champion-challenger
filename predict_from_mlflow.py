@@ -1,227 +1,271 @@
+import os
 import mlflow
-import mlflow.transformers
 import pandas as pd
 
-from pathlib import Path
 from mlflow.tracking import MlflowClient
 
 
-# --------------------------------------------------
-# Step 1: Configure MLflow
-# --------------------------------------------------
+# ============================================================
+# STEP 1: CONFIGURATION
+# ============================================================
 
-TRACKING_URI = "http://127.0.0.1:5000"
+mlflow.set_tracking_uri("http://127.0.0.1:5000")
 
-REGISTERED_MODEL_NAME = "SentimentChampionChallenger"
-MODEL_ALIAS = "champion"
+MODEL_NAME = "SentimentChampionChallenger"
+MODEL_URI = f"models:/{MODEL_NAME}@champion"
 
-MODEL_URI = (
-    f"models:/{REGISTERED_MODEL_NAME}@{MODEL_ALIAS}"
-)
-
-mlflow.set_tracking_uri(TRACKING_URI)
-
-client = MlflowClient(tracking_uri=TRACKING_URI)
+NEW_DATA_PATH = "data/new_data.csv"
+EVAL_DATA_PATH = "data/eval_inputs.csv"
+OUTPUT_PATH = "outputs/new_data_predictions.csv"
 
 
-# --------------------------------------------------
-# Step 2: Load new input data
-# --------------------------------------------------
+# ============================================================
+# STEP 2: CHECK INPUT FILES
+# ============================================================
 
-new_data_path = Path("data/new_data.csv")
-
-if not new_data_path.exists():
+if not os.path.exists(NEW_DATA_PATH):
     raise FileNotFoundError(
-        "data/new_data.csv not found. Create the file first."
+        f"New data file not found: {NEW_DATA_PATH}"
     )
 
-new_data = pd.read_csv(new_data_path)
+if not os.path.exists(EVAL_DATA_PATH):
+    raise FileNotFoundError(
+        f"Evaluation data file not found: {EVAL_DATA_PATH}"
+    )
 
-required_columns = {"sample_id", "text"}
+new_data = pd.read_csv(NEW_DATA_PATH)
+eval_data = pd.read_csv(EVAL_DATA_PATH)
 
-if not required_columns.issubset(new_data.columns):
+if "text" not in new_data.columns:
     raise ValueError(
-        "new_data.csv must contain sample_id and text columns."
+        "The new_data.csv file must contain a 'text' column."
     )
 
 if not 5 <= len(new_data) <= 10:
     raise ValueError(
-        "The assignment requires between 5 and 10 new examples."
+        "Provide between 5 and 10 new examples."
     )
 
-if new_data["text"].isna().any():
-    raise ValueError("New input data contains missing text.")
+new_data = new_data.dropna(subset=["text"]).copy()
+new_data["text"] = new_data["text"].astype(str).str.strip()
 
-print("New prediction inputs loaded.")
-print("Number of new samples:", len(new_data))
+if new_data["text"].eq("").any():
+    raise ValueError("New data contains empty text examples.")
 
-
-# --------------------------------------------------
-# Step 3: Verify inputs are not in evaluation dataset
-# --------------------------------------------------
-
-eval_path = Path("data/eval_inputs.csv")
-
-if not eval_path.exists():
-    raise FileNotFoundError(
-        "Evaluation dataset not found."
-    )
-
-evaluation_data = pd.read_csv(eval_path)
-
-evaluation_texts = set(
-    evaluation_data["text"].astype(str).str.strip()
-)
-
-new_texts = set(
-    new_data["text"].astype(str).str.strip()
-)
-
-if new_texts.intersection(evaluation_texts):
+if not 5 <= len(new_data) <= 10:
     raise ValueError(
-        "Some prediction inputs already exist in the evaluation dataset."
+        "After removing empty rows, provide 5 to 10 examples."
     )
 
-print("New prediction inputs verified.")
-print("No overlap with evaluation dataset.")
+
+# ============================================================
+# STEP 3: ENSURE NEW DATA IS NOT IN EVALUATION DATA
+# ============================================================
+
+eval_texts = set(
+    eval_data["text"].dropna().astype(str).str.strip()
+)
+
+new_texts = set(new_data["text"])
+
+overlapping_texts = new_texts.intersection(eval_texts)
+
+if overlapping_texts:
+    raise ValueError(
+        "Some new examples already exist in the evaluation dataset. "
+        "Use completely new examples."
+    )
+
+print("New data validation successful!")
+print("Number of new examples:", len(new_data))
 
 
-# --------------------------------------------------
-# Step 4: Retrieve Champion version and model metadata
-# --------------------------------------------------
+# ============================================================
+# STEP 4: LOAD THE CHAMPION MODEL FROM MLFLOW
+# ============================================================
 
-print("\nRetrieving Champion model information...")
+client = MlflowClient()
 
+# Retrieve the model version assigned the champion alias
 model_version = client.get_model_version_by_alias(
-    REGISTERED_MODEL_NAME,
-    MODEL_ALIAS
+    MODEL_NAME,
+    "champion"
 )
 
-registered_version = str(model_version.version)
+# Retrieve the original evaluation run
+source_run = client.get_run(model_version.run_id)
 
-model_run = client.get_run(model_version.run_id)
-
-hf_model_id = model_run.data.params.get(
-    "hf_model_id",
-    "Not available"
+# Read model information from the original run parameters
+model_name = source_run.data.params.get(
+    "model_name", "Unknown"
 )
 
-print("Registered model:", REGISTERED_MODEL_NAME)
-print("Model alias:", MODEL_ALIAS)
-print("Loaded model version:", registered_version)
-print("Hugging Face model ID:", hf_model_id)
-
-
-# --------------------------------------------------
-# Step 5: Load Champion model through MLflow
-# --------------------------------------------------
-
-print("\nLoading Champion model from MLflow...")
-
-classifier = mlflow.transformers.load_model(MODEL_URI)
-
-print("Champion model loaded successfully!")
-
-
-# --------------------------------------------------
-# Step 6: Perform sentiment predictions
-# --------------------------------------------------
-
-print("\nRunning sentiment predictions...")
-
-predictions = classifier(
-    new_data["text"].tolist(),
-    batch_size=8,
-    truncation=True,
-    max_length=256
+hf_model_id = source_run.data.params.get(
+    "hf_model_id", "Unknown"
 )
 
+print("\n========== CHAMPION MODEL DETAILS ==========")
+print("Registered Model:", MODEL_NAME)
+print("Loaded Model Version:", model_version.version)
+print("Model Name:", model_name)
+print("Hugging Face Model ID:", hf_model_id)
+print("Source Run ID:", model_version.run_id)
 
-# --------------------------------------------------
-# Step 7: Prepare prediction results
-# --------------------------------------------------
+# Load the Champion model using MLflow PyFunc
+model = mlflow.pyfunc.load_model(MODEL_URI)
 
-new_data["predicted_sentiment"] = [
-    prediction["label"].lower()
-    for prediction in predictions
-]
 
-new_data["confidence"] = [
-    round(float(prediction["score"]), 4)
-    for prediction in predictions
-]
+# ============================================================
+# STEP 5: GENERATE PREDICTIONS USING MLFLOW
+# ============================================================
 
-print("\nPREDICTION RESULTS")
-print("=" * 100)
+print("\nGenerating predictions...")
+
+# Use the MLflow PyFunc model for prediction
+preds = model.predict(new_data["text"])
+
+
+# ============================================================
+# STEP 6: PROCESS PREDICTION OUTPUT
+# ============================================================
+
+def extract_prediction(pred):
+    """
+    Extract the predicted label and confidence score
+    from the MLflow PyFunc prediction output.
+    """
+
+    # Handle pandas Series
+    if isinstance(pred, pd.Series):
+        pred = pred.to_dict()
+
+    # Handle pandas DataFrame row converted to dictionary
+    if isinstance(pred, dict):
+
+        # Handle nested predictions
+        if "predictions" in pred:
+            return extract_prediction(pred["predictions"])
+
+        label = pred.get("label", "Unknown")
+        score = pred.get("score", None)
+
+        if score is not None:
+            score = float(score)
+
+        return label, score
+
+    # Handle nested list output from Transformers
+    if isinstance(pred, list):
+        if len(pred) == 0:
+            return "Unknown", None
+
+        return extract_prediction(pred[0])
+
+    # Handle string-only output
+    if isinstance(pred, str):
+        return pred, None
+
+    return str(pred), None
+
+
+predicted_labels = []
+confidence_scores = []
+
+# Handle DataFrame output
+if isinstance(preds, pd.DataFrame):
+
+    for _, row in preds.iterrows():
+        label, score = extract_prediction(row.to_dict())
+
+        predicted_labels.append(label)
+        confidence_scores.append(score)
+
+# Handle Series output
+elif isinstance(preds, pd.Series):
+
+    for pred in preds.tolist():
+        label, score = extract_prediction(pred)
+
+        predicted_labels.append(label)
+        confidence_scores.append(score)
+
+# Handle list or array-like output
+else:
+
+    for pred in preds:
+        label, score = extract_prediction(pred)
+
+        predicted_labels.append(label)
+        confidence_scores.append(score)
+
+
+if len(predicted_labels) != len(new_data):
+    raise ValueError(
+        "Prediction count does not match the number of input examples."
+    )
+
+new_data["predicted_sentiment"] = predicted_labels
+new_data["confidence"] = confidence_scores
+
+
+# ============================================================
+# STEP 7: DISPLAY PREDICTION RESULTS
+# ============================================================
+
+print("\n========== NEW DATA PREDICTIONS ==========")
+
+display_columns = ["text", "predicted_sentiment", "confidence"]
 
 print(
-    new_data[
-        [
-            "sample_id",
-            "text",
-            "predicted_sentiment",
-            "confidence"
-        ]
-    ].to_string(index=False)
+    new_data[display_columns].to_string(index=False)
 )
 
 
-# --------------------------------------------------
-# Step 8: Save predictions
-# --------------------------------------------------
+# ============================================================
+# STEP 8: SAVE PREDICTIONS TO CSV
+# ============================================================
 
-output_dir = Path("outputs")
-output_dir.mkdir(parents=True, exist_ok=True)
+os.makedirs("outputs", exist_ok=True)
 
-output_path = output_dir / "new_data_predictions.csv"
+new_data.to_csv(OUTPUT_PATH, index=False)
 
-new_data.to_csv(output_path, index=False)
-
-print("\nPredictions saved to:", output_path)
+print("\nPredictions saved successfully!")
+print("Output file:", OUTPUT_PATH)
 
 
-# --------------------------------------------------
-# Step 9: Log prediction activity in MLflow
-# --------------------------------------------------
-
-experiment = mlflow.get_experiment_by_name(
-    "Champion-Challenger-Sentiment"
-)
-
-if experiment is None:
-    raise ValueError(
-        "MLflow experiment 'Champion-Challenger-Sentiment' not found."
-    )
+# ============================================================
+# STEP 9: LOG PREDICTION RUN IN MLFLOW
+# ============================================================
 
 with mlflow.start_run(
-    experiment_id=experiment.experiment_id,
-    run_name="Champion_Prediction_New_Data"
+    experiment_id=source_run.info.experiment_id,
+    run_name="Champion_New_Data_Predictions"
 ):
 
+    mlflow.set_tag("model_name", model_name)
+    mlflow.set_tag("hf_model_id", hf_model_id)
+    mlflow.set_tag("model_role", "champion")
+    mlflow.set_tag("model_version", str(model_version.version))
+
     mlflow.log_param("model_uri", MODEL_URI)
-    mlflow.log_param("model_alias", MODEL_ALIAS)
-    mlflow.log_param("model_version", registered_version)
-    mlflow.log_param("hf_model_id", hf_model_id)
-    mlflow.log_param("number_of_samples", len(new_data))
+    mlflow.log_param("prediction_samples", len(new_data))
 
-    mlflow.set_tag("model_name", "DistilBERT")
-    mlflow.set_tag("prediction_type", "new_unseen_data")
-    mlflow.set_tag("registered_model_name", REGISTERED_MODEL_NAME)
+    mlflow.log_artifact(OUTPUT_PATH)
 
-    mlflow.log_artifact(str(new_data_path))
-    mlflow.log_artifact(str(output_path))
+    mlflow.log_metric(
+        "prediction_samples",
+        len(new_data)
+    )
 
-    print("\nPrediction activity logged to MLflow.")
+    print("\nPrediction run logged successfully in MLflow!")
 
 
-# --------------------------------------------------
-# Step 10: Completion
-# --------------------------------------------------
+# ============================================================
+# STEP 10: FINAL STATUS
+# ============================================================
 
-print("\n" + "=" * 60)
-print("NEW DATA PREDICTION COMPLETED SUCCESSFULLY")
-print("=" * 60)
-
-print("Champion model version:", registered_version)
-print("Hugging Face model:", hf_model_id)
-print("Output file:", output_path)
+print("\n========== EXECUTION COMPLETED ==========")
+print("Champion Model:", model_name)
+print("Model Version:", model_version.version)
+print("Total Predictions:", len(new_data))
+print("Saved Predictions:", OUTPUT_PATH)
